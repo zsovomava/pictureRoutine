@@ -97,6 +97,14 @@ __global__ void SobelKernel(unsigned char* dev_gray_x, unsigned char* dev_gray_y
         dev_out[idx] = (sqrtf(dev_gray_x[idx] * dev_gray_x[idx] + dev_gray_y[idx] * dev_gray_y[idx])) > 100 ? 0 : 255;
     }
 }
+__global__ void LaplaceKernel(unsigned char* dev_out, int width, int height, int widthStep) {
+    int x = blockIdx.x * blockDim.x + threadIdx.x;
+    int y = blockIdx.y * blockDim.y + threadIdx.y;
+    if (x < width && y < height) {
+        int idx = y * width + y * widthStep + x;
+        dev_out[idx] = (dev_out[idx]*dev_out[idx]) > 50 ? 255 : 0;
+    }
+}
 
 extern "C" __declspec(dllexport) void RunNegateKernel(unsigned char* pictureIn, unsigned char* pictureOut, int width, int height, int widthStep, int channels)
 {
@@ -476,6 +484,77 @@ extern "C" __declspec(dllexport) void RunSobelKernel(unsigned char* pictureIn, u
     cudaFree(dev_gray_y);
     cudaFree(dev_matrix_x);
     cudaFree(dev_matrix_y);
+    cudaFree(dev_matrix_blure);
+}
+extern "C" __declspec(dllexport) void RunLaplaceKernel(unsigned char* pictureIn, unsigned char* pictureOut, int width, int height, int widthStep, int channels)
+{
+    unsigned char* dev_in;
+    unsigned char* dev_gray;
+    unsigned char* dev_gray_blure;
+    unsigned char* dev_out;
+    int* dev_matrix_laplace;
+    int* dev_matrix_blure;
+
+    size_t size = (width * height * channels + widthStep * height) * sizeof(unsigned char);
+    size_t graySize = (width * height + widthStep * height) * sizeof(unsigned char);
+    int matrixDims = 3;
+    int matrix_size = 9;
+    int matrix_laplace[9] = {   0, -1, 0,
+                                -1, 4, -1,
+                                0, -1, 0 };
+
+    cudaMalloc((void**)&dev_in, size);
+    cudaMalloc((void**)&dev_gray, graySize);
+    cudaMalloc((void**)&dev_gray_blure, graySize);
+    cudaMalloc((void**)&dev_out, graySize);
+    cudaMalloc((void**)&dev_matrix_laplace, matrix_size * sizeof(int));
+
+    cudaMemcpy(dev_in, pictureIn, size, cudaMemcpyHostToDevice);
+    cudaMemcpy(dev_matrix_laplace, matrix_laplace, matrix_size * sizeof(int), cudaMemcpyHostToDevice);
+
+    dim3 block(16, 16);
+    dim3 grid((width + block.x - 1) / block.x + 1, (height + block.y - 1) / block.y + 1);
+
+    grayKernel << <grid, block >> > (dev_in, dev_gray, width, height, widthStep, channels);
+
+    {
+        double sigma = 0.5;
+        int matrixDimsBlure = 7;
+        int matrix_size_blure = matrixDimsBlure * matrixDimsBlure;
+        int* matrix = new int[matrix_size_blure];
+        int halfSize = matrixDimsBlure / 2;
+        int idx = 0;
+        long sum = 0;
+        for (int i = -halfSize; i <= halfSize; i++) {
+            for (int j = -halfSize; j <= halfSize; j++) {
+                double value = (1.0 / (2.0 * 3.141592 * sigma * sigma)) *
+                    std::exp(-(i * i + j * j) / (2 * sigma * sigma));
+                matrix[idx] = value * 10000;
+                sum += matrix[idx++];
+            }
+        }
+        for (size_t i = 0; i < matrix_size_blure; i++)
+        {
+            matrix[i] = matrix[i] / (double)sum * 10000;
+        }
+        cudaMalloc((void**)&dev_matrix_blure, matrix_size_blure * sizeof(int));
+        cudaMemcpy(dev_matrix_blure, matrix, matrix_size_blure * sizeof(int), cudaMemcpyHostToDevice);
+
+        MaskKernel << <grid, block >> > (dev_gray, dev_gray_blure, width, height, widthStep, channels, dev_matrix_blure, matrixDimsBlure, matrixDimsBlure);
+        cudaDeviceSynchronize();
+        cudaDeviceSynchronize();
+    }
+    MaskKernel << <grid, block >> > (dev_gray_blure, dev_out, width, height, widthStep, channels, dev_matrix_laplace, matrixDims, matrixDims);
+    cudaDeviceSynchronize();
+
+    LaplaceKernel << <grid, block >> > (dev_out, width, height, widthStep);
+
+    cudaMemcpy(pictureOut, dev_out, graySize, cudaMemcpyDeviceToHost);
+
+    cudaFree(dev_in);
+    cudaFree(dev_gray);
+    cudaFree(dev_out);
+    cudaFree(dev_matrix_laplace);
     cudaFree(dev_matrix_blure);
 }
 

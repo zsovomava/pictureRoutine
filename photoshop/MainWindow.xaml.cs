@@ -105,7 +105,16 @@ namespace photoshop
         int widthStep,
         int channels
     );
-        
+        [DllImport("pictureRoutine.dll", CallingConvention = CallingConvention.Cdecl)]
+        public static extern void RunLaplaceKernel(
+        byte[] pictureIn,
+        byte[] pictureOut,
+        int width,
+        int height,
+        int widthStep,
+        int channels
+    );
+
         Bitmap picIn;
         Bitmap picOut;
         public MainWindow()
@@ -135,7 +144,9 @@ namespace photoshop
             byte[] pictureIn = BitmapToByteArray(picIn);
             byte[] pictureOut = new byte[pictureIn.Length];
 
+            DateTime before = DateTime.Now;
             RunNegateKernel(pictureIn, pictureOut, width, height, widthStep, channels);
+            time.Text = (DateTime.Now - before).Nanoseconds.ToString();
 
             picOut = ByteArrayToBitmap(pictureOut, width, height);
             
@@ -151,8 +162,10 @@ namespace photoshop
             byte[] pictureIn = BitmapToByteArray(picIn);
             byte[] pictureOut = new byte[pictureIn.Length];
             float gamma = float.Parse(parameter_Number.Text);
-
+            
+            DateTime before = DateTime.Now;
             RungammaKernel(pictureIn, pictureOut, width, height, widthStep, channels, gamma);
+            time.Text = (DateTime.Now - before).Nanoseconds.ToString();
 
             picOut = ByteArrayToBitmap(pictureOut, width, height);
 
@@ -169,7 +182,10 @@ namespace photoshop
             byte[] pictureOut = new byte[pictureIn.Length];
             float c = float.Parse(parameter_Number.Text);
 
+            DateTime before = DateTime.Now;
             RunLogKernel(pictureIn, pictureOut, width, height, widthStep, channels, c);
+            time.Text = (DateTime.Now - before).Nanoseconds.ToString();
+
 
             picOut = ByteArrayToBitmap(pictureOut, width, height);
 
@@ -185,7 +201,10 @@ namespace photoshop
             byte[] pictureIn = BitmapToByteArray(picIn);
             byte[] pictureOut = new byte[(width+widthStep)*height];
 
+            DateTime before = DateTime.Now;
             RunGrayKernel(pictureIn, pictureOut, width, height, widthStep, channels);
+            time.Text = (DateTime.Now - before).Nanoseconds.ToString();
+            
             picOut = ByteArrayToBitmapGray(pictureOut, width, height);
             PictureOutput.Source = BitmapToImageSource(picOut);
             picIn = picOut;
@@ -199,7 +218,10 @@ namespace photoshop
             byte[] pictureIn = BitmapToByteArray(picIn);
             int[] hisztogramOut = new int[256];
 
+            DateTime before = DateTime.Now;
             RunHistogramKernel(pictureIn, hisztogramOut, width, height, widthStep, channels);
+            time.Text = (DateTime.Now - before).Nanoseconds.ToString();
+            
             ScottPlot.Plot myPlot = new();
             var barPlot = myPlot.Add.Bars(Array.ConvertAll(hisztogramOut, i => (double)i));
 
@@ -220,7 +242,11 @@ namespace photoshop
             byte[] pictureIn = BitmapToByteArray(picIn);
             byte[] pictureOut = new byte[(width + widthStep) * height];
 
+            DateTime before = DateTime.Now;
             RunHistogramEqualizationKernel(pictureIn, pictureOut, width, height, widthStep, channels);
+            time.Text = (DateTime.Now - before).Nanoseconds.ToString();
+
+            
             picOut = ByteArrayToBitmapGray(pictureOut, width, height);
             PictureOutput.Source = BitmapToImageSource(picOut);
             picIn = picOut;
@@ -236,7 +262,10 @@ namespace photoshop
             byte[] pictureOut = new byte[(width + widthStep) * height];
             int matrixDims = int.Parse(parameter_Number.Text);
 
+            DateTime before = DateTime.Now;
             RunAVGKernel(pictureIn, pictureOut, width, height, widthStep, channels, matrixDims);
+            time.Text = (DateTime.Now - before).Nanoseconds.ToString();
+
 
             picOut = ByteArrayToBitmapGray(pictureOut, width, height);
 
@@ -253,8 +282,10 @@ namespace photoshop
                 byte[] pictureOut = new byte[(width + widthStep) * height];
                 int matrixdims = 7;
                 double sigma = double.Parse(parameter_Number.Text);
-
+                
+                DateTime before = DateTime.Now;
                 RunGaussKernel(pictureIn, pictureOut, width, height, widthStep, channels,matrixdims, sigma);
+                time.Text = (DateTime.Now - before).Nanoseconds.ToString();
 
                 picOut = ByteArrayToBitmapGray(pictureOut, width, height);
 
@@ -273,6 +304,23 @@ namespace photoshop
             DateTime before = DateTime.Now;
             RunSobelKernel(pictureIn, pictureOut, width, height, widthStep, channels);
             time.Text = (DateTime.Now - before).Nanoseconds.ToString();
+            picOut = ByteArrayToBitmapGray(pictureOut, width, height);
+
+            PictureOutput.Source = BitmapToImageSource(picOut);
+            picIn = picOut;
+        }
+        private void Laplace_click(object sender, RoutedEventArgs e)
+        {
+            int width = picIn.Width;
+            int height = picIn.Height;
+            int channels = 3;
+            int widthStep = (4 - ((width * channels) % 4)) % 4;
+            byte[] pictureIn = BitmapToByteArray(picIn);
+            byte[] pictureOut = new byte[(width + widthStep) * height];
+
+            DateTime before = DateTime.Now;
+            RunLaplaceKernel(pictureIn, pictureOut, width, height, widthStep, channels);
+            time.Text = ((DateTime.Now - before).Seconds*1000 + (DateTime.Now - before).Nanoseconds).ToString();
             picOut = ByteArrayToBitmapGray(pictureOut, width, height);
 
             PictureOutput.Source = BitmapToImageSource(picOut);
