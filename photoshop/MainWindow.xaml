@@ -34,6 +34,7 @@
             <Button Grid.Column="3" Grid.Row="0" Click="log_Click">Logaritmus</Button>
             <Button Grid.Column="4" Grid.Row="0" Click="gray_Click">Fekete fehér</Button>
             <Button Grid.Column="5" Grid.Row="0" Click="Sobel_Click">Sobel</Button>
+            <Button Grid.Column="6" Grid.Row="0" Click="ImportantPoint_Click">Jellemző pontok</Button>
             <Button Grid.Column="0" Grid.Row="1" Click="histogram_Click">Histogram</Button>
             <Button Grid.Column="1" Grid.Row="1" Click="histogram_delay_Click">Histogram kiegyenlítés</Button>
             <Button Grid.Column="2" Grid.Row="1" Click="AVG_Click">Avg</Button>

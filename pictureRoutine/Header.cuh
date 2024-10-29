@@ -12,5 +12,6 @@ extern "C" __declspec(dllexport) void RunAVGKernel(unsigned char* pictureIn, uns
 extern "C" __declspec(dllexport) void RunGaussKernel(unsigned char* pictureIn, unsigned char* pictureOut, int width, int height, int widthStep, int channels, int matrixDims, double sigma);
 extern "C" __declspec(dllexport) void RunSobelKernel(unsigned char* pictureIn, unsigned char* pictureOut, int width, int height, int widthStep, int channels);
 extern "C" __declspec(dllexport) void RunLaplaceKernel(unsigned char* pictureIn, unsigned char* pictureOut, int width, int height, int widthStep, int channels);
+extern "C" __declspec(dllexport) void RunImportantPointKernel(unsigned char* pictureIn, unsigned char* pictureOut, int width, int height, int widthStep, int channels);
 
 #endif

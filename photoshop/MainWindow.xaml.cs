@@ -1,6 +1,7 @@
 ﻿using Microsoft.Win32;
 using ScottPlot;
 using System.Collections;
+using System.Diagnostics;
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.IO;
@@ -114,6 +115,15 @@ namespace photoshop
         int widthStep,
         int channels
     );
+        [DllImport("pictureRoutine.dll", CallingConvention = CallingConvention.Cdecl)]
+        public static extern void RunImportantPointKernel(
+        byte[] pictureIn,
+        byte[] pictureOut,
+        int width,
+        int height,
+        int widthStep,
+        int channels
+    );
 
         Bitmap picIn;
         Bitmap picOut;
@@ -144,9 +154,11 @@ namespace photoshop
             byte[] pictureIn = BitmapToByteArray(picIn);
             byte[] pictureOut = new byte[pictureIn.Length];
 
-            DateTime before = DateTime.Now;
+            Stopwatch stopwatch = new Stopwatch();
+            stopwatch.Start();
             RunNegateKernel(pictureIn, pictureOut, width, height, widthStep, channels);
-            time.Text = (DateTime.Now - before).Nanoseconds.ToString();
+            stopwatch.Stop();
+            time.Text = stopwatch.ElapsedMilliseconds.ToString() + "ms";
 
             picOut = ByteArrayToBitmap(pictureOut, width, height);
             
@@ -162,10 +174,12 @@ namespace photoshop
             byte[] pictureIn = BitmapToByteArray(picIn);
             byte[] pictureOut = new byte[pictureIn.Length];
             float gamma = float.Parse(parameter_Number.Text);
-            
-            DateTime before = DateTime.Now;
+
+            Stopwatch stopwatch = new Stopwatch();
+            stopwatch.Start();
             RungammaKernel(pictureIn, pictureOut, width, height, widthStep, channels, gamma);
-            time.Text = (DateTime.Now - before).Nanoseconds.ToString();
+            stopwatch.Stop();
+            time.Text = stopwatch.ElapsedMilliseconds.ToString() + "ms";
 
             picOut = ByteArrayToBitmap(pictureOut, width, height);
 
@@ -182,10 +196,12 @@ namespace photoshop
             byte[] pictureOut = new byte[pictureIn.Length];
             float c = float.Parse(parameter_Number.Text);
 
-            DateTime before = DateTime.Now;
+            Stopwatch stopwatch = new Stopwatch();
+            stopwatch.Start();
             RunLogKernel(pictureIn, pictureOut, width, height, widthStep, channels, c);
-            time.Text = (DateTime.Now - before).Nanoseconds.ToString();
-
+            stopwatch.Stop();
+            time.Text = stopwatch.ElapsedMilliseconds.ToString() + "ms";
+            
 
             picOut = ByteArrayToBitmap(pictureOut, width, height);
 
@@ -200,10 +216,13 @@ namespace photoshop
             int widthStep = (4 - ((width * channels) % 4)) % 4;
             byte[] pictureIn = BitmapToByteArray(picIn);
             byte[] pictureOut = new byte[(width+widthStep)*height];
-
-            DateTime before = DateTime.Now;
+            
+            Stopwatch stopwatch = new Stopwatch();
+            stopwatch.Start();
             RunGrayKernel(pictureIn, pictureOut, width, height, widthStep, channels);
-            time.Text = (DateTime.Now - before).Nanoseconds.ToString();
+            stopwatch.Stop();
+            time.Text = stopwatch.ElapsedMilliseconds.ToString() + "ms";
+            
             
             picOut = ByteArrayToBitmapGray(pictureOut, width, height);
             PictureOutput.Source = BitmapToImageSource(picOut);
@@ -218,9 +237,11 @@ namespace photoshop
             byte[] pictureIn = BitmapToByteArray(picIn);
             int[] hisztogramOut = new int[256];
 
-            DateTime before = DateTime.Now;
+            Stopwatch stopwatch = new Stopwatch();
+            stopwatch.Start();
             RunHistogramKernel(pictureIn, hisztogramOut, width, height, widthStep, channels);
-            time.Text = (DateTime.Now - before).Nanoseconds.ToString();
+            stopwatch.Stop();
+            time.Text = stopwatch.ElapsedMilliseconds.ToString() + "ms";
             
             ScottPlot.Plot myPlot = new();
             var barPlot = myPlot.Add.Bars(Array.ConvertAll(hisztogramOut, i => (double)i));
@@ -242,10 +263,12 @@ namespace photoshop
             byte[] pictureIn = BitmapToByteArray(picIn);
             byte[] pictureOut = new byte[(width + widthStep) * height];
 
-            DateTime before = DateTime.Now;
+            Stopwatch stopwatch = new Stopwatch();
+            stopwatch.Start();
             RunHistogramEqualizationKernel(pictureIn, pictureOut, width, height, widthStep, channels);
-            time.Text = (DateTime.Now - before).Nanoseconds.ToString();
-
+            stopwatch.Stop();
+            time.Text = stopwatch.ElapsedMilliseconds.ToString() + "ms";
+            
             
             picOut = ByteArrayToBitmapGray(pictureOut, width, height);
             PictureOutput.Source = BitmapToImageSource(picOut);
@@ -262,10 +285,11 @@ namespace photoshop
             byte[] pictureOut = new byte[(width + widthStep) * height];
             int matrixDims = int.Parse(parameter_Number.Text);
 
-            DateTime before = DateTime.Now;
+            Stopwatch stopwatch = new Stopwatch();
+            stopwatch.Start();
             RunAVGKernel(pictureIn, pictureOut, width, height, widthStep, channels, matrixDims);
-            time.Text = (DateTime.Now - before).Nanoseconds.ToString();
-
+            stopwatch.Stop();
+            time.Text = stopwatch.ElapsedMilliseconds.ToString() + "ms";
 
             picOut = ByteArrayToBitmapGray(pictureOut, width, height);
 
@@ -282,11 +306,13 @@ namespace photoshop
                 byte[] pictureOut = new byte[(width + widthStep) * height];
                 int matrixdims = 7;
                 double sigma = double.Parse(parameter_Number.Text);
-                
-                DateTime before = DateTime.Now;
-                RunGaussKernel(pictureIn, pictureOut, width, height, widthStep, channels,matrixdims, sigma);
-                time.Text = (DateTime.Now - before).Nanoseconds.ToString();
 
+                Stopwatch stopwatch = new Stopwatch();
+                stopwatch.Start();
+                RunGaussKernel(pictureIn, pictureOut, width, height, widthStep, channels,matrixdims, sigma);
+                stopwatch.Stop();
+                time.Text = stopwatch.ElapsedMilliseconds.ToString() + "ms";
+                
                 picOut = ByteArrayToBitmapGray(pictureOut, width, height);
 
                 PictureOutput.Source = BitmapToImageSource(picOut);
@@ -301,9 +327,12 @@ namespace photoshop
             byte[] pictureIn = BitmapToByteArray(picIn);
             byte[] pictureOut = new byte[(width + widthStep) * height];
 
-            DateTime before = DateTime.Now;
+            Stopwatch stopwatch = new Stopwatch();
+            stopwatch.Start();
             RunSobelKernel(pictureIn, pictureOut, width, height, widthStep, channels);
-            time.Text = (DateTime.Now - before).Nanoseconds.ToString();
+            stopwatch.Stop();
+            time.Text = stopwatch.ElapsedMilliseconds.ToString() + "ms"; 
+            
             picOut = ByteArrayToBitmapGray(pictureOut, width, height);
 
             PictureOutput.Source = BitmapToImageSource(picOut);
@@ -318,13 +347,39 @@ namespace photoshop
             byte[] pictureIn = BitmapToByteArray(picIn);
             byte[] pictureOut = new byte[(width + widthStep) * height];
 
-            DateTime before = DateTime.Now;
+            Stopwatch stopwatch = new Stopwatch();
+            stopwatch.Start();
             RunLaplaceKernel(pictureIn, pictureOut, width, height, widthStep, channels);
-            time.Text = ((DateTime.Now - before).Seconds*1000 + (DateTime.Now - before).Nanoseconds).ToString();
+            stopwatch.Stop();
+            time.Text = stopwatch.ElapsedMilliseconds.ToString() + "ms"; 
+            
+            
             picOut = ByteArrayToBitmapGray(pictureOut, width, height);
 
             PictureOutput.Source = BitmapToImageSource(picOut);
             picIn = picOut;
+        }
+        private void ImportantPoint_Click(object sender, RoutedEventArgs e)
+        {
+            int width = picIn.Width;
+            int height = picIn.Height;
+            int channels = 3;
+            int widthStep = (4 - ((width * channels) % 4)) % 4;
+            byte[] pictureIn = BitmapToByteArray(picIn);
+            byte[] pictureOut = new byte[pictureIn.Length];
+
+            Stopwatch stopwatch = new Stopwatch();
+            stopwatch.Start();
+            RunImportantPointKernel(pictureIn, pictureOut, width, height, widthStep, channels);
+            stopwatch.Stop();
+            time.Text = stopwatch.ElapsedMilliseconds.ToString() + "ms";
+            ;
+
+            picOut = ByteArrayToBitmap(pictureOut, width, height);
+
+            PictureOutput.Source = BitmapToImageSource(picOut);
+            picIn = picOut;
+
         }
 
 

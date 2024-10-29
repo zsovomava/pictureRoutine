@@ -9,6 +9,7 @@
 #include <string>
 #include <fstream>
 
+
 __global__ void negateKernel(unsigned char* dev_in, unsigned char* dev_out, int width, int height, int widthStep, int channels)
 {
     int x = blockIdx.x * blockDim.x + threadIdx.x;
@@ -105,6 +106,67 @@ __global__ void LaplaceKernel(unsigned char* dev_out, int width, int height, int
         dev_out[idx] = (dev_out[idx]*dev_out[idx]) > 50 ? 255 : 0;
     }
 }
+__global__ void SumAreaKernel(unsigned char* dev_in, unsigned int* dev_sum, int width, int height, int widthStep, int dims) {
+    int x = blockIdx.x * blockDim.x + threadIdx.x;
+    int y = blockIdx.y * blockDim.y + threadIdx.y;
+    if (x < width && y < height) {
+        int idx = y * width + y * widthStep + x;
+        int idx_sum = y * width + x;
+        int half_dim = dims / 2;
+
+        for (int i = -half_dim; i <= half_dim; i++) {
+            int x_in_picture = x + i;
+            
+
+            for (int j = -half_dim; j <= half_dim; j++) {
+                int y_in_picture = y + j;
+
+                if (x_in_picture >= 0 && x_in_picture < width && y_in_picture >= 0 && y_in_picture < height) {
+                    
+                    dev_sum[y * width + x] += dev_in[x_in_picture+y_in_picture*(width + widthStep)];
+                }
+            }
+        }
+    }
+}
+__global__ void KLTKernel(unsigned char* dev_gray_in, unsigned char* dev_out, unsigned int* dev_derival_xy, unsigned int* dev_Doublederival_x, unsigned int* dev_Doublederival_y, int width, int height, int widthStep, double k, int th) {
+    int x = blockIdx.x * blockDim.x + threadIdx.x;
+    int y = blockIdx.y * blockDim.y + threadIdx.y;
+
+    if (x >= width || y >= height) return; 
+
+    int idx = y * width + x;
+
+    unsigned int A = dev_Doublederival_x[idx];
+    unsigned int B = dev_Doublederival_y[idx];
+    unsigned int C = dev_derival_xy[idx];
+
+    double R = ((A * B - C * C) + k * (A + B) * (A + B))/100000;
+
+    int channels = 3;
+    int gidx = y * widthStep + y * width + x;
+    int cidx = (width * y * channels) + y * widthStep + x * channels;;
+    dev_out[cidx] = dev_gray_in[gidx];
+    dev_out[cidx+1] = dev_gray_in[gidx];
+    dev_out[cidx+2] = dev_gray_in[gidx];
+
+    if (R > th) {
+        for (int dy = -2; dy <= 2; dy++) {
+            for (int dx = -2; dx <= 2; dx++) {
+                int nx = x + dx;
+                int ny = y + dy;
+
+                if (nx >= 0 && nx < width && ny >= 0 && ny < height) {
+                    int nidx = ny * width * 3 + ny * widthStep + nx * 3;
+                    dev_out[nidx] = 0;       
+                    dev_out[nidx + 1] = 0;     
+                    dev_out[nidx + 2] = 255;     
+                }
+            }
+        }
+    }
+}
+
 
 extern "C" __declspec(dllexport) void RunNegateKernel(unsigned char* pictureIn, unsigned char* pictureOut, int width, int height, int widthStep, int channels)
 {
@@ -556,5 +618,131 @@ extern "C" __declspec(dllexport) void RunLaplaceKernel(unsigned char* pictureIn,
     cudaFree(dev_out);
     cudaFree(dev_matrix_laplace);
     cudaFree(dev_matrix_blure);
+}
+extern "C" __declspec(dllexport) void RunImportantPointKernel(unsigned char* pictureIn, unsigned char* pictureOut, int width, int height, int widthStep, int channels)
+{
+    unsigned char* dev_in;
+    unsigned char* dev_gray;
+    unsigned char* dev_gray_blure;
+    unsigned char* dev_derival_x;
+    unsigned char* dev_derival_y;
+    unsigned char* dev_derival_xy;
+    unsigned char* dev_DoubleDerival_x;
+    unsigned char* dev_DoubleDerival_y;
+
+    unsigned int* dev_sumderival_xy;
+    unsigned int* dev_sumDoubleDerival_x;
+    unsigned int* dev_sumDoubleDerival_y;
+
+    unsigned char* dev_out;
+    int* dev_matrix_derival_x;
+    int* dev_matrix_derival_y;
+    int* dev_matrix_blure;
+
+    size_t size = (width * height * channels + widthStep * height) * sizeof(unsigned char);
+    size_t graySize = (width * height + widthStep * height) * sizeof(unsigned char);
+    size_t sumderival = (width * height) * sizeof(unsigned int);
+    
+    int matrixDims = 3;
+    int matrix_size = 9;
+    int matrix_derival_x[9] = { 1, 1, 1,
+                                0, 0, 0,
+                                -1, -1, -1 };
+
+    int matrix_derival_y[9] = { 1, 0, -1,
+                                1, 0, -1,
+                                1, 0, -1 };
+    cudaMalloc((void**)&dev_in, size);
+    cudaMalloc((void**)&dev_gray, graySize);
+    cudaMalloc((void**)&dev_gray_blure, graySize);
+    cudaMalloc((void**)&dev_derival_x, graySize);
+    cudaMalloc((void**)&dev_derival_y, graySize);
+    cudaMalloc((void**)&dev_derival_xy, graySize);
+    cudaMalloc((void**)&dev_DoubleDerival_x, graySize);
+    cudaMalloc((void**)&dev_DoubleDerival_y, graySize);
+
+    cudaMalloc((void**)&dev_sumderival_xy, sumderival);
+    cudaMalloc((void**)&dev_sumDoubleDerival_x, sumderival);
+    cudaMalloc((void**)&dev_sumDoubleDerival_y, sumderival);
+    cudaMalloc((void**)&dev_out, size);
+
+    cudaMalloc((void**)&dev_matrix_derival_x, matrix_size * sizeof(int));
+    cudaMalloc((void**)&dev_matrix_derival_y, matrix_size * sizeof(int));
+
+    cudaMemcpy(dev_in, pictureIn, size, cudaMemcpyHostToDevice);
+    cudaMemcpy(dev_matrix_derival_x, matrix_derival_x, matrix_size * sizeof(int), cudaMemcpyHostToDevice);
+    cudaMemcpy(dev_matrix_derival_y, matrix_derival_y, matrix_size * sizeof(int), cudaMemcpyHostToDevice);
+
+    dim3 block(16, 16);
+    dim3 grid((width + block.x - 1) / block.x + 1, (height + block.y - 1) / block.y + 1);
+
+    grayKernel << <grid, block >> > (dev_in, dev_gray, width, height, widthStep, channels);
+
+    {
+        double sigma = 0.5;
+        int matrixDimsBlure = 7;
+        int matrix_size_blure = matrixDimsBlure * matrixDimsBlure;
+        int* matrix = new int[matrix_size_blure];
+        int halfSize = matrixDimsBlure / 2;
+        int idx = 0;
+        long sum = 0;
+        for (int i = -halfSize; i <= halfSize; i++) {
+            for (int j = -halfSize; j <= halfSize; j++) {
+                double value = (1.0 / (2.0 * 3.141592 * sigma * sigma)) *
+                    std::exp(-(i * i + j * j) / (2 * sigma * sigma));
+                matrix[idx] = value * 10000;
+                sum += matrix[idx++];
+            }
+        }
+        for (size_t i = 0; i < matrix_size_blure; i++)
+        {
+            matrix[i] = matrix[i] / (double)sum * 10000;
+        }
+        cudaMalloc((void**)&dev_matrix_blure, matrix_size_blure * sizeof(int));
+        cudaMemcpy(dev_matrix_blure, matrix, matrix_size_blure * sizeof(int), cudaMemcpyHostToDevice);
+
+        MaskKernel << <grid, block >> > (dev_gray, dev_gray_blure, width, height, widthStep, channels, dev_matrix_blure, matrixDimsBlure, matrixDimsBlure);
+        cudaDeviceSynchronize();
+    }
+    
+    MaskKernel << <grid, block >> > (dev_gray_blure, dev_derival_x, width, height, widthStep, channels, dev_matrix_derival_x, matrixDims, matrixDims);
+    MaskKernel << <grid, block >> > (dev_gray_blure, dev_derival_y, width, height, widthStep, channels, dev_matrix_derival_y, matrixDims, matrixDims);
+    cudaDeviceSynchronize();
+    
+    MaskKernel << <grid, block >> > (dev_derival_x, dev_derival_xy, width, height, widthStep, channels, dev_matrix_derival_y, matrixDims, matrixDims);
+    MaskKernel << <grid, block >> > (dev_derival_x, dev_DoubleDerival_x, width, height, widthStep, channels, dev_matrix_derival_x, matrixDims, matrixDims);
+    MaskKernel << <grid, block >> > (dev_derival_y, dev_DoubleDerival_y, width, height, widthStep, channels, dev_matrix_derival_y, matrixDims, matrixDims);
+    cudaDeviceSynchronize();
+
+    int area = 7;
+    SumAreaKernel<< <grid, block >> > (dev_derival_xy, dev_sumderival_xy, width, height, widthStep, area);
+    SumAreaKernel<< <grid, block >> > (dev_DoubleDerival_x, dev_sumDoubleDerival_x, width, height, widthStep, area);
+    SumAreaKernel<< <grid, block >> > (dev_DoubleDerival_y, dev_sumDoubleDerival_y, width, height, widthStep, area);
+
+    double k = 0.25;
+    int th = 43000;
+    KLTKernel << <grid, block >> > (dev_gray, dev_out, dev_sumderival_xy, dev_sumDoubleDerival_x, dev_sumDoubleDerival_y, width, height, widthStep, k, th);
+
+    cudaDeviceSynchronize();
+
+
+
+    cudaMemcpy(pictureOut, dev_out, size, cudaMemcpyDeviceToHost);
+
+    cudaFree(dev_in);
+    cudaFree(dev_gray);
+    cudaFree(dev_gray_blure);
+    cudaFree(dev_derival_x);
+    cudaFree(dev_derival_y);
+    cudaFree(dev_derival_xy);
+    cudaFree(dev_DoubleDerival_x);
+    cudaFree(dev_DoubleDerival_y);
+    cudaFree(dev_sumderival_xy);
+    cudaFree(dev_sumDoubleDerival_x);
+    cudaFree(dev_sumDoubleDerival_y);
+    cudaFree(dev_out);
+    cudaFree(dev_matrix_blure);
+    cudaFree(dev_matrix_derival_x);
+    cudaFree(dev_matrix_derival_y);
 }
 
