@@ -173,7 +173,12 @@ namespace photoshop
             int widthStep = (4 - ((width * channels) % 4)) % 4;
             byte[] pictureIn = BitmapToByteArray(picIn);
             byte[] pictureOut = new byte[pictureIn.Length];
-            float gamma = float.Parse(parameter_Number.Text);
+            float gamma; 
+            var success = float.TryParse(parameter_Number.Text, out gamma);
+            if (!success)
+            {
+                gamma = 1.2f;
+            }
 
             Stopwatch stopwatch = new Stopwatch();
             stopwatch.Start();
@@ -194,8 +199,12 @@ namespace photoshop
             int widthStep = (4 - ((width * channels) % 4)) % 4;
             byte[] pictureIn = BitmapToByteArray(picIn);
             byte[] pictureOut = new byte[pictureIn.Length];
-            float c = float.Parse(parameter_Number.Text);
-
+            float c;
+            var success = float.TryParse(parameter_Number.Text, out c);
+            if (!success)
+            {
+                c = 25f;
+            }
             Stopwatch stopwatch = new Stopwatch();
             stopwatch.Start();
             RunLogKernel(pictureIn, pictureOut, width, height, widthStep, channels, c);
@@ -283,7 +292,12 @@ namespace photoshop
             int widthStep = (4 - ((width * channels) % 4)) % 4;
             byte[] pictureIn = BitmapToByteArray(picIn);
             byte[] pictureOut = new byte[(width + widthStep) * height];
-            int matrixDims = int.Parse(parameter_Number.Text);
+            int matrixDims;
+            var success = int.TryParse(parameter_Number.Text, out matrixDims);
+            if (!success)
+            {
+                matrixDims = 5;
+            }
 
             Stopwatch stopwatch = new Stopwatch();
             stopwatch.Start();
@@ -305,9 +319,13 @@ namespace photoshop
                 byte[] pictureIn = BitmapToByteArray(picIn);
                 byte[] pictureOut = new byte[(width + widthStep) * height];
                 int matrixdims = 7;
-                double sigma = double.Parse(parameter_Number.Text);
-
-                Stopwatch stopwatch = new Stopwatch();
+                double sigma;
+                var success = double.TryParse(parameter_Number.Text, out sigma);
+                if (!success)
+                {
+                    sigma = 0.5;
+                }
+            Stopwatch stopwatch = new Stopwatch();
                 stopwatch.Start();
                 RunGaussKernel(pictureIn, pictureOut, width, height, widthStep, channels,matrixdims, sigma);
                 stopwatch.Stop();
