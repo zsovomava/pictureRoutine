@@ -1,15 +1,16 @@
-A feladat a következő alap képmanipulációs rutin implementálása volt. 
-Negálás
-Gamma transzformáció
-Logaritmikus transzformáció
-Szürkítés
-Hisztogram készítés
-Hisztogram kiegyenlítés
-Átlagoló szűrő (Box szűrő)
-Gauss szűrő
-Sobel éldetektor
-Laplace éldetektor
-Jellemzőpontok detektálása
+A feladat a következő alap képmanipulációs rutin implementálása volt.
+
+* Negálás
+* Gamma transzformáció
+* Logaritmikus transzformáció
+* Szürkítés
+* Hisztogram készítés
+* Hisztogram kiegyenlítés
+* Átlagoló szűrő (Box szűrő)
+* Gauss szűrő
+* Sobel éldetektor
+* Laplace éldetektor
+* Jellemzőpontok detektálása
 
 Ezeket a rutinokat cudában implementáltam majd egy dll-re fordítottam le őket.
 Az implementálás során igyekeztem a kerneleket úgy kialakítani hogy ne kelljen az egyes részeket többször implementálni mint béldául a szürkítést vagy egy maszk végig futtatását a képen.
